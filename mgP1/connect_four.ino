@@ -85,6 +85,8 @@ void Game::drop_piece(uint8_t player) {
   }
 }
 
+// ---------------------------------
+// these will be removed later just placeholders to help visualized
 short board[8][8] = {
 {0,0,0,0,0,0,0,0},
 {0,0,0,0,0,0,0,0},
@@ -128,6 +130,8 @@ byte ok[8] = {
 0b01101001,
 0b11110000
 };
+// --------------------------------------------------
+
 
 Game g;
 void setup() {
