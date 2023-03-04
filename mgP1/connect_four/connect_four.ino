@@ -1,4 +1,3 @@
-
 //Pin connected to ST_CP of 74HC595
 int latchPin = 8;
 //Pin connected to SH_CP of 74HC595
@@ -6,6 +5,7 @@ int clockPin = 12;
 ////Pin connected to DS of 74HC595
 int dataPin = 11;
 
+// button pins
 int left = 7;
 int drop = 6;
 int right = 5;
@@ -14,7 +14,6 @@ int right = 5;
 TODO: 
 -- fix add_piece
 -- document how the functions work
--- create button actions
 -- 
 */
 
@@ -27,12 +26,13 @@ class Game
     void print_board();
     void p1_plays();
     void p2_plays();
-    void check_for_win();
+    int check_for_win(int c);
     int check_col(int c);
     bool add_piece(uint8_t player, int c);
     void drop_piece(uint8_t player);
-    void player_turn();
+    int player_turn();
     void print_piece(int player, uint8_t row, uint8_t col);
+    void win_routine();
   private:
     short board[8][8];
     uint8_t piece_count[8];
@@ -46,15 +46,12 @@ class Game
 // clears the game board
 void Game::clear_board() {
   for (int i = 0; i < 8; i++) {
-    // p1[i] = 0xff;
-    // p1_piece_count[i] = 0;
-    // p2[i] = 0xff;
-    // p2_piece_count[i] = 0;
     piece_count[8] = 0;
     for (int j = 0; j < 8; j ++) {
       board[i][j] = 0;
     }
   }
+  // not sure why but resetting the boards in the upper loop was not working
   for(int i = 0; i < 8; i++) {
     p1[i] = 0xff;
     p2[i] = 0xff;
@@ -98,13 +95,32 @@ void Game::print_board() {
   }
 }
 
-// checks the board for a winner
-void Game::check_for_win() {
-  for(int c = 0; c < 8; c++) {
-    for (int r = 0; r < 8; r++) {
+// checks that the given coordinate is within the board
+int isValidCoord ( int x, int y ) {
+  return x >= 0 && x < 8 && y >= 0 && y < 8;
+}
 
+// checks the board for a winner
+int Game::check_for_win(int c) {
+  int HEIGHT = 8;
+  int WIDTH = 8;
+    for (int r = 0; r < HEIGHT; r++) { // iterate rows, bottom to top
+      for (int c = 0; c < WIDTH; c++) { // iterate columns, left to right
+        int player = board[r][c];
+        if (player == 0) continue; // don't check empty slots
+        if (c + 3 < WIDTH && player == board[r][c+1] && player == board[r][c+2] && player == board[r][c+3]) // look right 
+          return player;
+        if (r + 3 < HEIGHT) {
+          if (player == board[r+1][c] && player == board[r+2][c] && player == board[r+3][c]) // look up 
+            return player;
+          if (c + 3 < WIDTH && player == board[r+1][c+1] && player == board[r+2][c+2] && player == board[r+3][c+3]) // look up & right
+            return player;
+          if (c - 3 >= 0 && player == board[r+1][c-1] && player == board[r+2][c-2] && player == board[r+3][c-3]) // look up & left
+            return player;
+      }
     }
   }
+  return 0;
 }
 
 // checks the column and returns the location of the next piece
@@ -195,21 +211,18 @@ void Game::drop_piece(uint8_t player) {
 }
 
 // allows player to play their turn
-void Game::player_turn() {
+int Game::player_turn() {
   // generate new piece in center
   uint8_t new_piece_row = 0b00010000;
   uint8_t new_piece_col = 3;
 
   int delay_button_check = 0;
   while (true) {
-    // if (delay_print == 5) {
-      print_piece(turn, new_piece_row, new_piece_col);
-      // delay_print = 0;
-    // }
-    // delay_print++;
+    // print board and new piece
+    print_piece(turn, new_piece_row, new_piece_col);
 
     // player can move the piece with buttons
-    if (delay_button_check == 9) {
+    if (delay_button_check == 15) {
       if (digitalRead(right) == HIGH && new_piece_col < 7) {
         new_piece_row >>= 1;
         new_piece_col++;
@@ -219,20 +232,17 @@ void Game::player_turn() {
         new_piece_col--;
       }
       else if (digitalRead(drop) == HIGH) {
-        Serial.println("dropping piece");
         if (!add_piece(turn, new_piece_col)) continue;
-        Serial.println("dropping piece -- succeeded");
-        break;
+        turn = (turn == 1) ? 2 : 1;
+        return new_piece_col;
       }
       delay_button_check = 0;
     }
     delay_button_check++;
-    // show_board();
   }
-  turn = (turn == 1) ? 2 : 1;
 }
 
-// prints a single piece at the top of the matrix board
+// prints game board with piece at the top
 void Game::print_piece(int player, uint8_t new_row, uint8_t col) {
   byte player_1 = 255;
   byte player_2 = 255;
@@ -265,23 +275,11 @@ void Game::print_piece(int player, uint8_t new_row, uint8_t col) {
     //take the latch pin high so the LEDs will light up:
     digitalWrite(latchPin, HIGH);
   }
-
 }
 
-// ---------------------------------
-// these will be removed later just placeholders to help visualized
-/*
-short board[8][8] = {
-{0,0,0,0,0,0,0,0},
-{0,0,0,0,0,0,0,0},
-{0,0,0,0,0,0,0,0},
-{0,0,0,0,0,0,0,0},
-{0,0,0,1,0,0,0,0},
-{0,2,1,1,0,0,0,0},
-{2,1,2,2,0,0,0,0},
-{1,1,2,2,0,0,0,0}
-};
-*/
+void Game::win_routine() {
+
+}
 
 Game g;
 void setup() {
@@ -306,7 +304,10 @@ void loop() {
   // this will show the piece at the top of the board
   // it will also get the location of the piece
 
-  g.player_turn();
+  int piece_col = g.player_turn();
+
+  Serial.print("checking for a win: ");
+  Serial.println(g.check_for_win(piece_col));
   
   /*
   if (delay_adding == 250) {
