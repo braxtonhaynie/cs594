@@ -104,19 +104,19 @@ int isValidCoord ( int x, int y ) {
 int Game::check_for_win(int c) {
   int HEIGHT = 8;
   int WIDTH = 8;
-    for (int r = 0; r < HEIGHT; r++) { // iterate rows, bottom to top
-      for (int c = 0; c < WIDTH; c++) { // iterate columns, left to right
-        int player = board[r][c];
-        if (player == 0) continue; // don't check empty slots
-        if (c + 3 < WIDTH && player == board[r][c+1] && player == board[r][c+2] && player == board[r][c+3]) // look right 
+  for (int r = 0; r < HEIGHT; r++) { // iterate rows, bottom to top
+    for (int c = 0; c < WIDTH; c++) { // iterate columns, left to right
+      int player = board[r][c];
+      if (player == 0) continue; // don't check empty slots
+      if (c + 3 < WIDTH && player == board[r][c+1] && player == board[r][c+2] && player == board[r][c+3]) // look right 
+        return player;
+      if (r + 3 < HEIGHT) {
+        if (player == board[r+1][c] && player == board[r+2][c] && player == board[r+3][c]) // look up 
           return player;
-        if (r + 3 < HEIGHT) {
-          if (player == board[r+1][c] && player == board[r+2][c] && player == board[r+3][c]) // look up 
-            return player;
-          if (c + 3 < WIDTH && player == board[r+1][c+1] && player == board[r+2][c+2] && player == board[r+3][c+3]) // look up & right
-            return player;
-          if (c - 3 >= 0 && player == board[r+1][c-1] && player == board[r+2][c-2] && player == board[r+3][c-3]) // look up & left
-            return player;
+        if (c + 3 < WIDTH && player == board[r+1][c+1] && player == board[r+2][c+2] && player == board[r+3][c+3]) // look up & right
+          return player;
+        if (c - 3 >= 0 && player == board[r+1][c-1] && player == board[r+2][c-2] && player == board[r+3][c-3]) // look up & left
+          return player;
       }
     }
   }
@@ -157,9 +157,6 @@ bool Game::add_piece(uint8_t player, int c) {
   // add piece to the board
   board[c][piece_loc] = player;
   player_board[c] &= ~(MSB >> piece_loc);
-  Serial.println(player_board[c]);
-  Serial.println(~(MSB >> piece_loc));
-
   return true;
 }
 
