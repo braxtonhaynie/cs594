@@ -10,12 +10,11 @@ int left = 7;
 int drop = 6;
 int right = 5;
 
-/*
-TODO: 
--- fix add_piece
--- document how the functions work
--- 
-*/
+const int trigPin = 2;  
+const int echoPin = 3; 
+float duration;
+float distance;
+
 
 class Game
 {
@@ -31,15 +30,13 @@ class Game
     bool add_piece(uint8_t player, int c);
     void drop_piece(uint8_t player);
     int player_turn();
-    void print_piece(int player, uint8_t row, uint8_t col);
+    void print_piece(int player, uint8_t col);
     void win_routine();
   private:
     short board[8][8];
     uint8_t piece_count[8];
     uint8_t p1[8];
-    int8_t p1_piece_count[8];
     uint8_t p2[8];
-    int8_t p2_piece_count[8];
     int turn;
 };
 
@@ -160,37 +157,17 @@ bool Game::add_piece(uint8_t player, int c) {
   return true;
 }
 
-/*
-// player should be 1 or 2 to indicate player #
-void Game::add_piece(uint8_t player, int c) {
-  uint8_t *player_board;
-  int8_t *piece_count;
-  if (player == 1) {
-    player_board = p1;
-    piece_count = p1_piece_count;
-  }
-  else if (player = 2) {
-    player_board = p2;
-    piece_count = p2_piece_count;
-  }
-  else return;
-  if (c > 7 || c < 0 || player_board[c] == 0 || piece_count[c] == 8) return;
-  player_board[c] &= 0xfe;
-  piece_count[c]++;
-}
-*/
-
 // player should be 1 or 2 to indicate player #
 void Game::drop_piece(uint8_t player) {
   uint8_t *player_board;
-  int8_t *piece_count;
+  uint8_t *other_player_board;
   if (player == 1) {
     player_board = p1;
-    piece_count = p1_piece_count;
+    other_player_board = p2;
   }
   else if (player = 2) {
     player_board = p2;
-    piece_count = p2_piece_count;
+    other_player_board = p1
   }
   else return;
 
@@ -216,31 +193,48 @@ int Game::player_turn() {
   int delay_button_check = 0;
   while (true) {
     // print board and new piece
-    print_piece(turn, new_piece_row, new_piece_col);
+    print_piece(turn, new_piece_col);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(5);
+    digitalWrite(trigPin, LOW);  
 
-    // player can move the piece with buttons
-    if (delay_button_check == 15) {
-      if (digitalRead(right) == HIGH && new_piece_col < 7) {
-        new_piece_row >>= 1;
-        new_piece_col++;
+    duration = pulseIn(echoPin, HIGH);
+    distance = (duration*.0343)/2;
+
+    if(delay_button_check == 20){
+
+      if((distance > 0) and (distance <=20) and(new_piece_col == 1) ){
+        new_piece_col = 0;
+      } 
+      else if((distance > 20) and (distance <= 40) ){
+        new_piece_col = 1;
       }
-      else if (digitalRead(left) == HIGH && new_piece_col > 0) {
-        new_piece_row <<= 1;
-        new_piece_col--;
-      }
-      else if (digitalRead(drop) == HIGH) {
-        if (!add_piece(turn, new_piece_col)) continue;
-        turn = (turn == 1) ? 2 : 1;
-        return new_piece_col;
-      }
-      delay_button_check = 0;
+      else if ((distance > 40) and (distance <= 60))  {
+        new_piece_col = 2;
+      }    
+        else if ((distance > 60) and (distance <= 80))  {
+        new_piece_col = 3;
+      } 
+        else if ((distance > 80) and (distance <= 100))  {
+        new_piece_col = 4;
+      } 
+        else if ((distance > 100) and (distance <= 120))  {
+        new_piece_col = 5;
+      } 
+          else if ((distance > 120) and (distance <= 140))  {
+        new_piece_col = 6;
+      } 
+          else if ((distance > 140) and (distance <=160))  {
+        new_piece_col = 7;
+      } 
+          delay_button_check = 0;
     }
     delay_button_check++;
   }
 }
 
 // prints game board with piece at the top
-void Game::print_piece(int player, uint8_t new_row, uint8_t col) {
+void Game::print_piece(int player, uint8_t col) {
   byte player_1 = 255;
   byte player_2 = 255;
   if (player == 1) player_1 = p1[col] & 0b11111110;
@@ -287,6 +281,10 @@ void setup() {
   pinMode(right, INPUT);
   pinMode(drop, INPUT);
   pinMode(left, INPUT);
+  // sensor input pins
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin,INPUT);
+
   Serial.begin(9600);
   g = Game();
   g.clear_board();
@@ -295,31 +293,32 @@ void setup() {
 int delay_adding = 0;
 void loop() {
 
+/*
+the game logic is here
+
   g.show_board();
-
-  // player_turn();
-  // this will show the piece at the top of the board
-  // it will also get the location of the piece
-
   int piece_col = g.player_turn();
 
   Serial.print("checking for a win: ");
   Serial.println(g.check_for_win(piece_col));
-  
-  /*
+*/
+
+/*
+testing logic is here
+
   if (delay_adding == 250) {
-  if (g.check_col(2) == 0) {
-    g.add_piece(2 , 2);
-  }
-  else if (g.check_col(2) == 1) {
-    g.add_piece(1, 2);
-  }
-  else if (g.check_col(5) == 0) {
-    g.add_piece(2, 5);
-    g.add_piece(2, 5);
-  }
-  delay_adding = 0;
+    if (g.check_col(2) == 0) {
+      g.add_piece(2 , 2);
+    }
+    else if (g.check_col(2) == 1) {
+      g.add_piece(1, 2);
+    }
+    else if (g.check_col(5) == 0) {
+      g.add_piece(2, 5);
+      g.add_piece(2, 5);
+    }
+    delay_adding = 0;
   }
   delay_adding++;
-  */
+*/
 }
