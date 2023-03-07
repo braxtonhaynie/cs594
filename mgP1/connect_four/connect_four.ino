@@ -10,6 +10,7 @@ int left = 7;
 int drop = 6;
 int right = 5;
 
+// sensor pins
 const int trigPin = 2;  
 const int echoPin = 3; 
 float duration;
@@ -32,6 +33,7 @@ class Game
     int player_turn();
     void print_piece(int player, uint8_t col);
     void win_routine();
+    void check_board_count();
   private:
     short board[8][8];
     uint8_t piece_count[8];
@@ -153,7 +155,11 @@ bool Game::add_piece(uint8_t player, int c) {
 
   // add piece to the board
   board[c][piece_loc] = player;
-  player_board[c] &= ~(MSB >> piece_loc);
+
+  // temporary replacement to test dropping pieces
+  // player_board[c] &= ~(MSB >> piece_loc);
+  player_board[c] &= 0b11111110;
+  piece_count[c]++;
   return true;
 }
 
@@ -165,9 +171,9 @@ void Game::drop_piece(uint8_t player) {
     player_board = p1;
     other_player_board = p2;
   }
-  else if (player = 2) {
+  else if (player == 2) {
     player_board = p2;
-    other_player_board = p1
+    other_player_board = p1;
   }
   else return;
 
@@ -175,7 +181,8 @@ void Game::drop_piece(uint8_t player) {
     int8_t msb = 0b1 << 7;
     int8_t piece_counter = (piece_count[i] != 0) ? msb >> (piece_count[i] - 1) : 0;
     if (piece_counter == 0) continue;
-    if (player_board[i] == ~(msb >> (piece_count[i] - 1))) continue;
+    byte board_col = player_board[i] & other_player_board[i];
+    if (board_col == ~(msb >> (piece_count[i] - 1))) continue;
 
     // get location of droping pixel
     byte tmp = player_board[i] | (piece_counter);
@@ -184,12 +191,13 @@ void Game::drop_piece(uint8_t player) {
   }
 }
 
+/* commented out for the time until it is confirmed that other things work
 // allows player to play their turn
 int Game::player_turn() {
   // generate new piece in center
-  uint8_t new_piece_row = 0b00010000;
   uint8_t new_piece_col = 3;
 
+  int count = 0;
   int delay_button_check = 0;
   while (true) {
     // print board and new piece
@@ -201,8 +209,14 @@ int Game::player_turn() {
     duration = pulseIn(echoPin, HIGH);
     distance = (duration*.0343)/2;
 
+    count++;
     if(delay_button_check == 20){
-
+      drop_piece(1);
+      drop_piece(2);
+      if (count > 100) {
+        add_piece(turn, new_piece_col);
+      }
+      /*
       if((distance > 0) and (distance <=20) and(new_piece_col == 1) ){
         new_piece_col = 0;
       } 
@@ -227,9 +241,93 @@ int Game::player_turn() {
           else if ((distance > 140) and (distance <=160))  {
         new_piece_col = 7;
       } 
-          delay_button_check = 0;
+      delay_button_check = 0;
     }
     delay_button_check++;
+  }
+}
+*/
+
+// allows player to play their turn
+int Game::player_turn() {
+  // generate new piece in center
+  uint8_t new_piece_row = 0b00010000;
+  uint8_t new_piece_col = 3;
+
+  int delay_sensor_check = 0;
+  float prev_distance = 0;
+  int soundcount = 0;
+  int drop_piece_count = 0;
+  while (true) {
+    // print board and new piece
+    print_piece(turn, new_piece_col);
+    if (drop_piece_count == 8) {
+      drop_piece(1);
+      drop_piece(2);
+      drop_piece_count = -1;
+    }
+    drop_piece_count++;
+
+    if  (delay_sensor_check == 50){
+      digitalWrite(trigPin, HIGH);  
+      delayMicroseconds(2);  
+      digitalWrite(trigPin, LOW);  
+
+      duration = pulseIn(echoPin, HIGH);
+      prev_distance = distance;
+      distance = (duration*.0343)/2;
+      
+      int diff = distance - prev_distance;
+
+      if (abs(diff) > 70){
+        distance = prev_distance;
+      }
+
+      if(distance > 300){
+        distance = prev_distance;
+      }
+
+      delay_sensor_check = 0;
+    }
+    delay_sensor_check++;
+    int sensorValue = analogRead(A0);
+    show_board();
+    soundcount++;
+    if((sensorValue > 590) and (soundcount > 50)){
+      if (!add_piece(turn, new_piece_col)) continue;
+      turn = (turn == 1) ? 2 : 1;
+      soundcount = 0;
+      return new_piece_col;
+    }
+    else if((distance > 0) and (distance <=20) ){
+      new_piece_col = 0;
+    } 
+    else if((distance > 20) and (distance <= 40) ){
+      new_piece_col = 1;
+    }
+    else if ((distance > 40) and (distance <= 60))  {
+      new_piece_col = 2;
+    }    
+    else if ((distance > 60) and (distance <= 80))  {
+      new_piece_col = 3;
+
+    } 
+    else if ((distance > 80) and (distance <= 100))  {
+      new_piece_col = 4;
+
+    } 
+    else if ((distance > 100) and (distance <= 120))  {
+      new_piece_col = 5;
+
+    } 
+    else if ((distance > 120) and (distance <= 140))  {
+      new_piece_col = 6;
+
+    } 
+    else if ((distance > 140) and (distance <=160))  {
+      new_piece_col = 7;
+    }
+    Serial.println(sensorValue);
   }
 }
 
@@ -269,7 +367,82 @@ void Game::print_piece(int player, uint8_t col) {
 }
 
 void Game::win_routine() {
+  byte p1_win[8] = {
+    0b11111111,
+    0b11111111,
+    0b11111111,
+    0b00000000,
+    0b00000000,
+    0b11111001,
+    0b11111011,
+    0b11111111
+  };
+  byte p2_win[8] = {
+    0b11111111,
+    0b00111001,
+    0b00011000,
+    0b00001100,
+    0b00100100,
+    0b00110000,
+    0b00111001,
+    0b11111111
+  };
+  int show_counter = 0;
+  while(true) {
+    if (show_counter < 200) {
+      drop_piece(1);
+      drop_piece(2);    
+      if (turn == 1) {
+        byte row = 0b10000000;
+        for(int i = 0; i < 8; i++) {
+          digitalWrite(latchPin, LOW);
+          // shift out the bits:
+          shiftOut(dataPin, clockPin, 1, p2_win[i]);
+          shiftOut(dataPin, clockPin, 1, 255);
+          shiftOut(dataPin, clockPin, 1, row);
+          row >>= 1;
+          //take the latch pin high so the LEDs will light up:
+          digitalWrite(latchPin, HIGH);
+        }
+      }
+      else {
+        byte row = 0b10000000;
+        for(int i = 0; i < 8; i++) {
+          digitalWrite(latchPin, LOW);
+          // shift out the bits:
+          shiftOut(dataPin, clockPin, 1, 255);
+          shiftOut(dataPin, clockPin, 1, p1_win[i]);
+          shiftOut(dataPin, clockPin, 1, row);
+          row >>= 1;
+          //take the latch pin high so the LEDs will light up:
+          digitalWrite(latchPin, HIGH);
+        }
+      }
+    }
+    else {
+      show_board();
+      if(show_counter > 400) show_counter = 0;
+    }
+    show_counter++;
+  }
+}
 
+void Game::check_board_count() {
+  uint8_t count = 0;
+  for(int i = 0; i < 8; i++) {
+    if (piece_count[i] == 8) count++;
+  }
+  if (count == 8) {
+    count = 0;
+    while(true) {
+      if (count < 200)
+        show_board();
+      else if (count < 400){
+        count = 0;
+      }
+      count++;
+    }
+  }
 }
 
 Game g;
@@ -278,9 +451,6 @@ void setup() {
   pinMode(latchPin, OUTPUT);
   pinMode(clockPin, OUTPUT);
   pinMode(dataPin, OUTPUT);
-  pinMode(right, INPUT);
-  pinMode(drop, INPUT);
-  pinMode(left, INPUT);
   // sensor input pins
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin,INPUT);
@@ -292,20 +462,20 @@ void setup() {
 
 int delay_adding = 0;
 void loop() {
-
-/*
-the game logic is here
-
+// the game logic is here
   g.show_board();
   int piece_col = g.player_turn();
 
-  Serial.print("checking for a win: ");
-  Serial.println(g.check_for_win(piece_col));
-*/
+  if (g.check_for_win(piece_col)) {
+    g.win_routine();
+  }
+  g.check_board_count();
 
 /*
-testing logic is here
-
+// testing logic is here
+  g.show_board();
+  g.drop_piece(2);
+  g.drop_piece(1);
   if (delay_adding == 250) {
     if (g.check_col(2) == 0) {
       g.add_piece(2 , 2);
@@ -314,11 +484,15 @@ testing logic is here
       g.add_piece(1, 2);
     }
     else if (g.check_col(5) == 0) {
-      g.add_piece(2, 5);
+      g.add_piece(1, 4);
       g.add_piece(2, 5);
     }
+    else if (g.check_col(5) == 1) {
+      g.add_piece(2, 5);
+    }
+    
     delay_adding = 0;
   }
   delay_adding++;
-*/
+  */
 }
