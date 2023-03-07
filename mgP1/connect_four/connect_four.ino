@@ -11,15 +11,12 @@ const int echoPin = 3;
 float duration;
 float distance;
 
-class Game
-{
+class Game{
   public:
-    Game() { turn = 1;};
+    Game() { turn = 1; clear_board();};
     void clear_board();
     void show_board();
     void print_board();
-    void p1_plays();
-    void p2_plays();
     int check_for_win(int c);
     int check_col(int c);
     bool add_piece(uint8_t player, int c);
@@ -44,7 +41,8 @@ void Game::clear_board() {
       board[i][j] = 0;
     }
   }
-  // not sure why but resetting the boards in the upper loop was not working
+  // reset the player boards as well
+  // needed to do this separately due to issues
   for(int i = 0; i < 8; i++) {
     p1[i] = 0xff;
     p2[i] = 0xff;
@@ -151,8 +149,7 @@ bool Game::add_piece(uint8_t player, int c) {
   // add piece to the board
   board[c][piece_loc] = player;
 
-  // temporary replacement to test dropping pieces
-  // player_board[c] &= ~(MSB >> piece_loc);
+  // add piece to start of the column so it can be shifted down by drop_piece
   player_board[c] &= 0b11111110;
   piece_count[c]++;
   return true;
@@ -191,21 +188,22 @@ int Game::player_turn() {
   // generate new piece in center
   uint8_t new_piece_row = 0b00010000;
   uint8_t new_piece_col = 3;
-
   int delay_sensor_check = 0;
   float prev_distance = 0;
   int soundcount = 0;
   int drop_piece_count = 0;
+
+  // keep cycling until a player plays a valid move
   while (true) {
-    // print board and new piece
-    print_piece(turn, new_piece_col);
-    if (drop_piece_count == 6) {
+    print_piece(turn, new_piece_col); // print board and new piece
+    if (drop_piece_count == 6) { // drop a piece if one has been played
       drop_piece(1);
       drop_piece(2);
       drop_piece_count = -1;
     }
     drop_piece_count++;
 
+    // delay on distance sensor
     if  (delay_sensor_check == 50){
       digitalWrite(trigPin, HIGH);
       delayMicroseconds(2);
@@ -303,6 +301,7 @@ void Game::print_piece(int player, uint8_t col) {
   }
 }
 
+// if a player wins it switches between the game board and which player won
 void Game::win_routine() {
   byte p1_win[8] = {
     0b11111111,
@@ -364,9 +363,10 @@ void Game::win_routine() {
   }
 }
 
+// checks the board to see if anyone can still play a piece
 void Game::check_board_count() {
   uint8_t count = 0;
-  for(int i = 0; i < 8; i++) {
+  for(int i = 0; i < 8; i++) { // if a column is full add it to counter
     if (piece_count[i] == 8) count++;
   }
   if (count == 8) {
@@ -384,7 +384,7 @@ void Game::check_board_count() {
 
 Game g;
 void setup() {
-//set pins to output so you can control the shift register
+  //set pins to output so you can control the shift register
   pinMode(latchPin, OUTPUT);
   pinMode(clockPin, OUTPUT);
   pinMode(dataPin, OUTPUT);
@@ -392,11 +392,13 @@ void setup() {
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin,INPUT);
 
+  // start Serial for debugging
   Serial.begin(9600);
   g = Game();
   g.clear_board();
 }
 
+// Main loop
 int delay_adding = 0;
 void loop() {
 // the game logic is here
@@ -407,29 +409,4 @@ void loop() {
     g.win_routine();
   }
   g.check_board_count();
-
-/*
-// testing logic is here
-  g.show_board();
-  g.drop_piece(2);
-  g.drop_piece(1);
-  if (delay_adding == 250) {
-    if (g.check_col(2) == 0) {
-      g.add_piece(2 , 2);
-    }
-    else if (g.check_col(2) == 1) {
-      g.add_piece(1, 2);
-    }
-    else if (g.check_col(5) == 0) {
-      g.add_piece(1, 4);
-      g.add_piece(2, 5);
-    }
-    else if (g.check_col(5) == 1) {
-      g.add_piece(2, 5);
-    }
-    
-    delay_adding = 0;
-  }
-  delay_adding++;
-  */
 }
