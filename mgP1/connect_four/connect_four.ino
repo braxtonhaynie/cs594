@@ -5,17 +5,11 @@ int clockPin = 12;
 ////Pin connected to DS of 74HC595
 int dataPin = 11;
 
-// button pins
-int left = 7;
-int drop = 6;
-int right = 5;
-
 // sensor pins
 const int trigPin = 2;  
 const int echoPin = 3; 
 float duration;
 float distance;
-
 
 class Game
 {
@@ -100,6 +94,7 @@ int isValidCoord ( int x, int y ) {
 }
 
 // checks the board for a winner
+// checking modified from this post: https://codereview.stackexchange.com/questions/127091/java-connect-four-four-in-a-row-detection-algorithms
 int Game::check_for_win(int c) {
   int HEIGHT = 8;
   int WIDTH = 8;
@@ -191,63 +186,6 @@ void Game::drop_piece(uint8_t player) {
   }
 }
 
-/* commented out for the time until it is confirmed that other things work
-// allows player to play their turn
-int Game::player_turn() {
-  // generate new piece in center
-  uint8_t new_piece_col = 3;
-
-  int count = 0;
-  int delay_button_check = 0;
-  while (true) {
-    // print board and new piece
-    print_piece(turn, new_piece_col);
-    digitalWrite(trigPin, HIGH);
-    delayMicroseconds(5);
-    digitalWrite(trigPin, LOW);  
-
-    duration = pulseIn(echoPin, HIGH);
-    distance = (duration*.0343)/2;
-
-    count++;
-    if(delay_button_check == 20){
-      drop_piece(1);
-      drop_piece(2);
-      if (count > 100) {
-        add_piece(turn, new_piece_col);
-      }
-      /*
-      if((distance > 0) and (distance <=20) and(new_piece_col == 1) ){
-        new_piece_col = 0;
-      } 
-      else if((distance > 20) and (distance <= 40) ){
-        new_piece_col = 1;
-      }
-      else if ((distance > 40) and (distance <= 60))  {
-        new_piece_col = 2;
-      }    
-        else if ((distance > 60) and (distance <= 80))  {
-        new_piece_col = 3;
-      } 
-        else if ((distance > 80) and (distance <= 100))  {
-        new_piece_col = 4;
-      } 
-        else if ((distance > 100) and (distance <= 120))  {
-        new_piece_col = 5;
-      } 
-          else if ((distance > 120) and (distance <= 140))  {
-        new_piece_col = 6;
-      } 
-          else if ((distance > 140) and (distance <=160))  {
-        new_piece_col = 7;
-      } 
-      delay_button_check = 0;
-    }
-    delay_button_check++;
-  }
-}
-*/
-
 // allows player to play their turn
 int Game::player_turn() {
   // generate new piece in center
@@ -261,7 +199,7 @@ int Game::player_turn() {
   while (true) {
     // print board and new piece
     print_piece(turn, new_piece_col);
-    if (drop_piece_count == 8) {
+    if (drop_piece_count == 6) {
       drop_piece(1);
       drop_piece(2);
       drop_piece_count = -1;
@@ -269,9 +207,9 @@ int Game::player_turn() {
     drop_piece_count++;
 
     if  (delay_sensor_check == 50){
-      digitalWrite(trigPin, HIGH);  
-      delayMicroseconds(2);  
-      digitalWrite(trigPin, LOW);  
+      digitalWrite(trigPin, HIGH);
+      delayMicroseconds(2);
+      digitalWrite(trigPin, LOW);
 
       duration = pulseIn(echoPin, HIGH);
       prev_distance = distance;
@@ -327,7 +265,6 @@ int Game::player_turn() {
     else if ((distance > 140) and (distance <=160))  {
       new_piece_col = 7;
     }
-    Serial.println(sensorValue);
   }
 }
 
@@ -369,12 +306,12 @@ void Game::print_piece(int player, uint8_t col) {
 void Game::win_routine() {
   byte p1_win[8] = {
     0b11111111,
-    0b11111111,
-    0b11111111,
-    0b00000000,
-    0b00000000,
-    0b11111001,
     0b11111011,
+    0b11111001,
+    0b00000000,
+    0b00000000,
+    0b11111111,
+    0b11111111,
     0b11111111
   };
   byte p2_win[8] = {
