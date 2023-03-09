@@ -11,12 +11,16 @@ const int echoPin = 3;
 float duration;
 float distance;
 
-class Game{
+
+class Game
+{
   public:
-    Game() { turn = 1; clear_board();};
+    Game() { turn = 1;};
     void clear_board();
     void show_board();
     void print_board();
+    void p1_plays();
+    void p2_plays();
     int check_for_win(int c);
     int check_col(int c);
     bool add_piece(uint8_t player, int c);
@@ -41,8 +45,7 @@ void Game::clear_board() {
       board[i][j] = 0;
     }
   }
-  // reset the player boards as well
-  // needed to do this separately due to issues
+  // not sure why but resetting the boards in the upper loop was not working
   for(int i = 0; i < 8; i++) {
     p1[i] = 0xff;
     p2[i] = 0xff;
@@ -92,7 +95,6 @@ int isValidCoord ( int x, int y ) {
 }
 
 // checks the board for a winner
-// checking modified from this post: https://codereview.stackexchange.com/questions/127091/java-connect-four-four-in-a-row-detection-algorithms
 int Game::check_for_win(int c) {
   int HEIGHT = 8;
   int WIDTH = 8;
@@ -149,7 +151,8 @@ bool Game::add_piece(uint8_t player, int c) {
   // add piece to the board
   board[c][piece_loc] = player;
 
-  // add piece to start of the column so it can be shifted down by drop_piece
+  // temporary replacement to test dropping pieces
+  // player_board[c] &= ~(MSB >> piece_loc);
   player_board[c] &= 0b11111110;
   piece_count[c]++;
   return true;
@@ -188,26 +191,25 @@ int Game::player_turn() {
   // generate new piece in center
   uint8_t new_piece_row = 0b00010000;
   uint8_t new_piece_col = 3;
+
   int delay_sensor_check = 0;
   float prev_distance = 0;
   int soundcount = 0;
   int drop_piece_count = 0;
-
-  // keep cycling until a player plays a valid move
   while (true) {
-    print_piece(turn, new_piece_col); // print board and new piece
-    if (drop_piece_count == 6) { // drop a piece if one has been played
+    // print board and new piece
+    print_piece(turn, new_piece_col);
+    if (drop_piece_count == 8) {
       drop_piece(1);
       drop_piece(2);
       drop_piece_count = -1;
     }
     drop_piece_count++;
 
-    // delay on distance sensor
     if  (delay_sensor_check == 50){
-      digitalWrite(trigPin, HIGH);
-      delayMicroseconds(2);
-      digitalWrite(trigPin, LOW);
+      digitalWrite(trigPin, HIGH);  
+      delayMicroseconds(2);  
+      digitalWrite(trigPin, LOW);  
 
       duration = pulseIn(echoPin, HIGH);
       prev_distance = distance;
@@ -263,6 +265,7 @@ int Game::player_turn() {
     else if ((distance > 140) and (distance <=160))  {
       new_piece_col = 7;
     }
+    Serial.println(sensorValue);
   }
 }
 
@@ -301,7 +304,6 @@ void Game::print_piece(int player, uint8_t col) {
   }
 }
 
-// if a player wins it switches between the game board and which player won
 void Game::win_routine() {
   byte p1_win[8] = {
     0b11111111,
@@ -363,10 +365,9 @@ void Game::win_routine() {
   }
 }
 
-// checks the board to see if anyone can still play a piece
 void Game::check_board_count() {
   uint8_t count = 0;
-  for(int i = 0; i < 8; i++) { // if a column is full add it to counter
+  for(int i = 0; i < 8; i++) {
     if (piece_count[i] == 8) count++;
   }
   if (count == 8) {
@@ -384,7 +385,7 @@ void Game::check_board_count() {
 
 Game g;
 void setup() {
-  //set pins to output so you can control the shift register
+//set pins to output so you can control the shift register
   pinMode(latchPin, OUTPUT);
   pinMode(clockPin, OUTPUT);
   pinMode(dataPin, OUTPUT);
@@ -392,13 +393,11 @@ void setup() {
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin,INPUT);
 
-  // start Serial for debugging
   Serial.begin(9600);
   g = Game();
   g.clear_board();
 }
 
-// Main loop
 int delay_adding = 0;
 void loop() {
 // the game logic is here
@@ -410,3 +409,4 @@ void loop() {
   }
   g.check_board_count();
 }
+
