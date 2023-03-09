@@ -206,6 +206,7 @@ int Game::player_turn() {
     }
     drop_piece_count++;
 
+    // check the distance sensor
     if  (delay_sensor_check == 50){
       digitalWrite(trigPin, HIGH);  
       delayMicroseconds(2);  
@@ -231,6 +232,8 @@ int Game::player_turn() {
     int sensorValue = analogRead(A0);
     show_board();
     soundcount++;
+
+    // check the microphone
     if((sensorValue > 590) and (soundcount > 50)){
       if (!add_piece(turn, new_piece_col)) continue;
       turn = (turn == 1) ? 2 : 1;
@@ -265,7 +268,6 @@ int Game::player_turn() {
     else if ((distance > 140) and (distance <=160))  {
       new_piece_col = 7;
     }
-    Serial.println(sensorValue);
   }
 }
 
@@ -304,6 +306,8 @@ void Game::print_piece(int player, uint8_t col) {
   }
 }
 
+// this routine is started if a player has won
+// the device will not leave this routine once it enters it
 void Game::win_routine() {
   byte p1_win[8] = {
     0b11111111,
@@ -365,6 +369,7 @@ void Game::win_routine() {
   }
 }
 
+// checks to see if any slots are still open
 void Game::check_board_count() {
   uint8_t count = 0;
   for(int i = 0; i < 8; i++) {
